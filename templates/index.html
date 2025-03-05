@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Tracker</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        #latest-location {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info-panel">
+        <h2>Location Tracker</h2>
+        <div id="latest-location">
+            <p>Loading latest location...</p>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the map
+            const map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Function to update latest location info
+            async function updateLatestLocation() {
+                try {
+                    const response = await fetch('/get-latest-location');
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const location = data.location;
+                        const latestLocationElement = document.getElementById('latest-location');
+                        latestLocationElement.innerHTML = `
+                            <strong>Latest Location:</strong>
+                            <p>${location.location_details.display_name}</p>
+                            <p>Timestamp: ${new Date(location.timestamp).toLocaleString()}</p>
+                            Timestamp: ${new Date(location.timestamp).toISOString()
+                            .replace('T', ' ')
+                            .slice(0, 19)} <br>
+                        `;
+                            // <p>Timestamp: ${new Date(location.timestamp)
+                            //     .toLocaleString('en-PH', {
+                            //         timeZone: 'Asia/Manila',
+                            //         timeZoneName: 'short',
+                            //         hour12: true,
+                            //         year: 'numeric',
+                            //         month: '2-digit',
+                            //         day: '2-digit',
+                            //         hour: '2-digit',
+                            //         minute: '2-digit',
+                            //         second: '2-digit'                                                            
+                            //     })}</p>                        
+                            // <p>Latitude: ${location.latitude}</p>
+                            // <p>Longitude: ${location.longitude}</p>
+                    }
+                } catch (error) {
+                    console.error('Error fetching latest location:', error);
+                }
+            }
+
+            // Function to fetch and plot all locations
+            async function fetchAndPlotLocations() {
+                try {
+                    const response = await fetch('/get-all-locations');
+                    const data = await response.json();
+
+                    if (data.status === 'success' && data.locations.length > 0) {
+                        // Create an array of coordinates for the line
+                        const coordinates = data.locations.map(location => [
+                            location.latitude, 
+                            location.longitude
+                        ]);
+
+                        // Add markers for each location
+                        data.locations.forEach(location => {
+                            L.marker([location.latitude, location.longitude])
+                                .addTo(map)
+                                .bindPopup(`
+                                    <b>Location</b><br>
+                                    ${location.location_details.display_name}<br><br>
+                                    Timestamp: ${new Date(location.timestamp).toLocaleString()}
+                                `);
+                                    // Latitude: ${location.latitude}<br>
+                                    // Longitude: ${location.longitude}<br>
+                        });
+
+                        // Draw a line connecting all locations
+                        if (coordinates.length > 1) {
+                            L.polyline(coordinates, {
+                                color: 'blue',
+                                weight: 3,
+                                opacity: 0.7
+                            }).addTo(map);
+                        }
+
+                        // Fit the map to show all markers
+                        const group = new L.featureGroup(
+                            data.locations.map(location => 
+                                L.marker([location.latitude, location.longitude])
+                            )
+                        );
+                        map.fitBounds(group.getBounds());
+                    }
+                } catch (error) {
+                    console.error('Error fetching locations:', error);
+                }
+            }
+
+            // Call functions to update latest location and plot all locations
+            updateLatestLocation();
+            fetchAndPlotLocations();
+
+            // Optional: Refresh latest location every 5 minutes
+            setInterval(updateLatestLocation, 5 * 60 * 1000);
+        });
+    </script>
+</body>
+</html>
