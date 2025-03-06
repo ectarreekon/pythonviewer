@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from flask_cors import CORS
 from dotenv import load_dotenv
 import urllib.parse
+import pytz
 
 # Load environment variables
 load_dotenv()
@@ -69,7 +70,13 @@ def get_latest_location():
         if latest_location:
             # Convert ObjectId to string for JSON serialization
             latest_location['_id'] = str(latest_location['_id'])
-            latest_location['timestamp'] = latest_location['timestamp'].isoformat()
+            utc_time = latest_location['timestamp']
+            if utc_time.tzinfo is None:
+                utc_time = pytz.utc.localize(utc_time)
+            manila_tz = pytz.timezone('Asia/Manila')    
+            manila_time = utc_time.astimezone(manila_tz)
+            latest_location['timestamp'] = manila_time.isoformat()
+            #latest_location['timestamp'] = latest_location['timestamp'].isoformat()
             
             return jsonify({
                 'status': 'success',
@@ -99,7 +106,13 @@ def get_all_locations():
         # Convert ObjectId to string and format timestamp for each location
         for location in all_locations:
             location['_id'] = str(location['_id'])
-            location['timestamp'] = location['timestamp'].isoformat()
+            utc_time = location['timestamp']
+            if utc_time.tzinfo is None:
+                utc_time = pytz.utc.localize(utc_time)
+            manila_tz = pytz.timezone('Asia/Manila')    
+            manila_time = utc_time.astimezone(manila_tz)
+            location['timestamp'] = manila_time.isoformat()
+            #location['timestamp'] = location['timestamp'].isoformat()
         
         return jsonify({
             'status': 'success',
